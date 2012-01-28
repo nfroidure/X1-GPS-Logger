@@ -1,0 +1,1 @@
+This is a small program that log the given X1 Series GPS box to the specified file. Used with xinetd it brings a lightweigth server simply logging your fleet positions.
