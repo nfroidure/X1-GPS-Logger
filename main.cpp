@@ -8,11 +8,13 @@
 #include <signal.h>
 #include <setjmp.h>
 #include <unistd.h>
+#include <syslog.h>
 
 sigjmp_buf sigalarm_context;
 
 void sigalarm_handler(int unused);
 int main();
+std::string device;
 
 void sigalarm_handler(int unused)
 	{
@@ -21,6 +23,8 @@ void sigalarm_handler(int unused)
 
 int main()
 	{
+	// Opening a logging session
+	openlog("X1Logger", LOG_PID, LOG_DAEMON);
 	// Setting timeout
 	struct sigaction action;
 	action.sa_handler=sigalarm_handler;
@@ -41,15 +45,15 @@ int main()
 		std::cin >> line;
 		alarm(0);
 		// Finding device name
-		std::string device;
 		std::size_t pos=line.find(',');
 		if(pos==std::string::npos)
 			{
-			//std::cerr << "No comma found 1\n";
-			exit(EXIT_FAILURE);
+			syslog(LOG_INFO, std::string("No comma found in '"+line+"'. Step 3.").c_str());
 			}
-		device=std::string(line, 0, pos);
-		if(device.length()<5) // crap fix
+		else
+			device=std::string(line, 0, pos);
+		// Retry 1 time if no device found
+		if(device.length()<5)
 			{
 			alarm(600);
 			std::cin >> line;
@@ -57,10 +61,19 @@ int main()
 			pos=line.find(',');
 			if(pos==std::string::npos)
 				{
-				//std::cerr << "No comma found 2\n";
+				syslog(LOG_INFO, std::string("No comma found in '"+line+"', exiting.").c_str());
+				closelog();
 				exit(EXIT_FAILURE);
 				}
-			device=std::string(line, 0, pos);
+			else
+				device=std::string(line, 0, pos);
+			}
+		// If still no device, exit.
+		if(device.length()<5)
+			{
+			syslog(LOG_INFO, std::string("No device name, exiting.").c_str());
+			closelog();
+			exit(EXIT_FAILURE);
 			}
 		// Getting current date
 		char date[9];
@@ -68,8 +81,8 @@ int main()
 		strftime(date, sizeof(date), "%Y%m%d", localtime(&timestamp));
 		// Creating log filename
 		std::string filename;
-		filename="/var/www/restfor/log/x1"+device+"-"+std::string(date)+".log.txt";
-		//filename="/home/elitwork/restfor/log/x1"+device+"-"+std::string(date)+".log.txt";
+		filename="/var/www/restfor/log/x1-"+device+"-"+std::string(date)+".log";
+		//filename="/home/elitwork/restfor/log/x1-"+device+"-"+std::string(date)+".log";
 		std::ofstream outputFile( filename.c_str() , std::ios::app);
 		while(1)
 			{
@@ -78,16 +91,28 @@ int main()
 			// Removing output and input values
 			pos=line.find_last_of(',');
 			if(pos==std::string::npos)
+				{
+				syslog(LOG_INFO, std::string(device+": No comma found in line '"+line+"'. Step 2.").c_str());
+				closelog();
 				exit(EXIT_FAILURE);
+				}
 			line = line.substr(0,pos);
 			pos=line.find_last_of(',');
 			if(pos==std::string::npos)
+				{
+				syslog(LOG_INFO, std::string(device+": No comma found in line '"+line+"'. Step 2.").c_str());
+				closelog();
 				exit(EXIT_FAILURE);
+				}
 			line = line.substr(0,pos);
 			// Removing datetime given by the device
 			pos=line.find(',');
 			if(pos==std::string::npos)
+				{
+				syslog(LOG_INFO, std::string(device+": No comma found in line '"+line+"'. Step 3.").c_str());
+				closelog();
 				exit(EXIT_FAILURE);
+				}
 			line = line.substr(0,pos) + line.substr(pos+15,line.length()-1);
 			// Time is in the line, maybe trust this information is better ? maybe delete device date (n others) to decrease log weight ?
 			char curtime[9];
@@ -101,7 +126,8 @@ int main()
 		}
 	else
 		{
-		//std::cerr << "X1Server (" << getpid() << ") : Read timed out\n";
+		syslog(LOG_INFO, std::string(device+": Read timed out").c_str());
+		closelog();
 		exit(EXIT_FAILURE);
 		}
 	// Exit
