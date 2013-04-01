@@ -4,6 +4,8 @@
 #include <sstream>
 #include <time.h>
 #include <algorithm>
+#include <dirent.h>
+#include <errno.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,8 +18,9 @@ sigjmp_buf sigalarm_context;
 
 void sigalarm_handler(int unused);
 void exitWell(int status, std::string message);
-int main();
+int main(int argc, char **argv);
 std::string device;
+std::string logdir;
 unsigned int deviceId;
 std::ofstream outputFile;
 
@@ -35,11 +38,25 @@ void exitWell(int status, std::string message)
 	exit(status);
 	}
 
-int main()
+int main(int argc, char **argv)
 	{
+	// Catching log destination
+	if(argc>1)
+		{
+		logdir=std::string(argv[1]);
+		}
+	else
+		logdir="/var/log";
 	// Opening a logging session
 	openlog("X1Logger", LOG_PID, LOG_DAEMON);
-//	syslog(LOG_INFO, std::string("V6").c_str());
+	syslog(LOG_DEBUG, std::string("V6").c_str());
+	// Testing logdir
+	DIR* dir = opendir(logdir.c_str());
+	if (errno==ENOENT)
+		{
+		exitWell(EXIT_FAILURE,"Given logdir is not a folder.");
+		}
+	closedir(dir);
 	// Setting timeout
 	struct sigaction action;
 	action.sa_handler=sigalarm_handler;
@@ -75,8 +92,7 @@ int main()
 				written = fwrite (buffer, (size_t) 1, sizeof buffer, stdout);
 				fflush(stdout);
 				alarm(0);
-				//sleep(10);
-				//syslog(LOG_INFO, std::string("Sync header '"+std::string(sbuffer)+"'.").c_str());
+				syslog(LOG_DEBUG, std::string("Sync header '"+std::string(sbuffer)+"'.").c_str());
 				// Getting the device id
 				deviceId = ((buffer[7] << 24)
 						+(buffer[6] << 16)
@@ -84,7 +100,7 @@ int main()
 						+(buffer[4]));
 				std::stringstream ss;
 				ss << "Device id is '" << deviceId << "', written " << written << " bytes.";
-				syslog(LOG_INFO, std::string(ss.str()).c_str());
+				syslog(LOG_DEBUG, std::string(ss.str()).c_str());
 				continue;
 				}
 			// it's a line
@@ -93,7 +109,7 @@ int main()
 				// Getting the end of the line
 				std::string curline;
 				std::cin >> curline;
-				syslog(LOG_INFO, std::string("Curline is '"+curline+"'.").c_str());
+				syslog(LOG_DEBUG, std::string("Curline is '"+curline+"'.").c_str());
 				alarm(0);
 				// Merging
 				std::string line;
@@ -101,7 +117,7 @@ int main()
 				line.append(curline);
 				while((!line.empty())&&(line[0]=='\r'||line[0]=='\n'))
 					line.erase(0,1);
-				syslog(LOG_INFO, std::string("First line is '"+line+"'.").c_str());
+				syslog(LOG_DEBUG, std::string("First line is '"+line+"'.").c_str());
 				std::size_t pos;
 				// Finding device name
 				if(device.empty())
@@ -112,7 +128,7 @@ int main()
 						exitWell(EXIT_FAILURE,"No comma found in '"+line+"', case 1.");
 						}
 					device=std::string(line, 0, pos);
-					syslog(LOG_INFO, std::string("Device is '"+device+"', cought from a line.").c_str());
+					syslog(LOG_DEBUG, std::string("Device is '"+device+"', cought from a line.").c_str());
 					// Testing device name
 					if(device.length()<5)
 						{
@@ -124,12 +140,11 @@ int main()
 					strftime(date, sizeof(date), "%Y%m%d", localtime(&timestamp));
 					// Creating log filename
 					std::string filename;
-					filename="/var/www/restfor/log/x1-"+device+"-"+std::string(date)+".log";
-					//filename="/home/ecogom/vigisystem/log/x1-"+device+"-"+std::string(date)+".log";
+					filename=logdir+"/x1-"+device+"-"+std::string(date)+".log";
 					outputFile.open(filename.c_str(), std::ios::app);
 					if(!outputFile.is_open())
 						exitWell(EXIT_FAILURE,"Failed opening file '"+filename+"'.");
-					syslog(LOG_INFO, std::string("Opening file '"+filename+"'.").c_str());
+					syslog(LOG_DEBUG, std::string("Opening file '"+filename+"'.").c_str());
 					}
 				// Removing output and input values
 				pos=line.find_last_of(',');
@@ -160,7 +175,7 @@ int main()
 					if(!outputFile.is_open())
 						exitWell(EXIT_FAILURE,"Failed writing to file.");
 					outputFile << std::string(curtime) << "," << line << std::endl;
-					syslog(LOG_INFO, std::string("Logging "+line+".").c_str());
+					syslog(LOG_DEBUG, std::string("Logging "+line+".").c_str());
 					continue;
 					}
 				else
