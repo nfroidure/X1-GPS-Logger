@@ -159,22 +159,26 @@ int main(int argc, char **argv)
 					exitWell(EXIT_FAILURE,"No comma found in line '"+line+"', case 4.");
 					}
 				line = line.substr(0,pos);
-				// Removing datetime given by the device
+				// Removing date and keepin' time given by the device
 				pos=line.find(',');
 				if(pos==std::string::npos)
 					{
 					exitWell(EXIT_FAILURE,"No comma found in line '"+line+"', case 5.");
 					}
-				line = line.substr(0,pos) + line.substr(pos+15,line.length()-1);
-				// Time is in the line, maybe trust this information is better ?
+				line = line.substr(pos+9,2)
+					+ ':' + line.substr(pos+11,2)
+					+ ':' + line.substr(pos+13,2)
+					+ ',' + line.substr(0,pos) + line.substr(pos+15,line.length()-1);
+				// Logging if enought commas
 				if(std::count(line.begin(), line.end(), ',')>4)
 					{
+					// adding server time at the end of the line
 					char curtime[9];
 					time_t timestamp = time(NULL);
 					strftime(curtime, sizeof(curtime), "%X", localtime(&timestamp));
 					if(!outputFile.is_open())
 						exitWell(EXIT_FAILURE,"Failed writing to file.");
-					outputFile << std::string(curtime) << "," << line << std::endl;
+					outputFile << line << "," << std::string(curtime) << std::endl;
 					syslog(LOG_DEBUG, std::string("Logging "+line+".").c_str());
 					continue;
 					}
