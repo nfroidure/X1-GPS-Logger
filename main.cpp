@@ -55,6 +55,7 @@ int main(int argc, char **argv)
 	DIR* dir = opendir(logdir.c_str());
 	if (errno==ENOENT)
 		{
+		std::cout << "Given logdir is not a folder.";
 		exitWell(EXIT_FAILURE,"Given logdir is not a folder.");
 		}
 	closedir(dir);
@@ -131,7 +132,7 @@ int main(int argc, char **argv)
 					device=std::string(line, 0, pos);
 					syslog(LOG_DEBUG, std::string("Device is '"+device+"', cought from a line.").c_str());
 					// Testing device name
-					if(device.length()<5)
+					if(device.length()<5||!isdigit(device.c_str()[0]))
 						{
 						exitWell(EXIT_FAILURE,"Bad device name.");
 						}
