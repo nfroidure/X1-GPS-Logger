@@ -20,6 +20,7 @@ void sigalarm_handler(int unused);
 void exitWell(int status, std::string message);
 int main(int argc, char **argv);
 std::string device;
+std::string deviceDate;
 std::string logdir;
 unsigned int deviceId;
 std::ofstream outputFile;
@@ -134,17 +135,6 @@ int main(int argc, char **argv)
 						{
 						exitWell(EXIT_FAILURE,"Bad device name.");
 						}
-					// Getting current date
-					char date[9];
-					time_t timestamp = time(NULL);
-					strftime(date, sizeof(date), "%Y%m%d", localtime(&timestamp));
-					// Creating log filename
-					std::string filename;
-					filename=logdir+"/x1-"+device+"-"+std::string(date)+".log";
-					outputFile.open(filename.c_str(), std::ios::app);
-					if(!outputFile.is_open())
-						exitWell(EXIT_FAILURE,"Failed opening file '"+filename+"'.");
-					syslog(LOG_DEBUG, std::string("Opening file '"+filename+"'.").c_str());
 					}
 				// Removing output and input values
 				pos=line.find_last_of(',');
@@ -159,8 +149,25 @@ int main(int argc, char **argv)
 					exitWell(EXIT_FAILURE,"No comma found in line '"+line+"', case 4.");
 					}
 				line = line.substr(0,pos);
-				// Removing date and keepin' time given by the device
+				// looking for the datetime field
 				pos=line.find(',');
+				// setting devideDate and opening the associated log file
+				if(deviceDate!=line.substr(pos+1,8))
+					{
+					// Closing the file first
+					if(outputFile.is_open())
+						outputFile.close();
+					// Saving the date given by the device
+					deviceDate=line.substr(pos+1,8);
+					// Creating log filename
+					std::string filename;
+					filename=logdir+"/x1-"+device+"-"+deviceDate+".log";
+					outputFile.open(filename.c_str(), std::ios::app);
+					if(!outputFile.is_open())
+						exitWell(EXIT_FAILURE,"Failed opening file '"+filename+"'.");
+					syslog(LOG_DEBUG, std::string("Opening file '"+filename+"'.").c_str());
+					}
+				// Removing date and keepin' time given by the device
 				if(pos==std::string::npos)
 					{
 					exitWell(EXIT_FAILURE,"No comma found in line '"+line+"', case 5.");
