@@ -1,4 +1,4 @@
-# X1 Intellitrac series GPS logger
+# X1 Intellitrac series GPS logger  [![Build Status](https://travis-ci.org/nfroidure/X1-GPS-Logger.png?branch=master)](https://travis-ci.org/nfroidure/X1-GPS-Logger)
 This is a small program that log the given X1 Series GPS box to the specified file. Used with xinetd it brings a lightweigth server simply logging your fleet positions.
 
 ## Sample xinetd conf file
